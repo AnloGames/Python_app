@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        #code
+        {
+            width: 100%
+            height: 100%
+        }
+    </style>
+</head>
+<body>
+    <textarea id="code">print("Hello world!")</textarea>
+    <button id="execute" onclick="run_code()">
+        Execute code
+    </button>
+    <textarea id="result" readonly></textarea>
+<script>
+    async function run_code()
+    {
+        let token = localStorage.getItem('token')
+        let code = document.getElementById("code").value
+        let resp = await fetch('/api/execute',{
+            method: "POST",
+            headers:
+            {
+                "Authorization": token,
+                "content-type": "application/json"
+            },
+            body: JSON.stringify({
+                    code: code
+                })
+        })
+        let data = await resp.json()
+        let result = document.getElementById("result")
+        result.value = data['result']
+    }
+</script>
+</body>
+</html>

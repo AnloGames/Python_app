@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <input type="text" id="login">
+    <input type="text" id="password">
+    <input type="text" id="another_password">
+    <button id="sig" type="button" onclick="submit_form()">
+        signUp
+    </button>
+
+<script>
+    async function submit_form()
+    {
+        let login = document.getElementById("login")
+        console.log(login.value)
+        let password = document.getElementById("password")
+        console.log(password.value)
+        let another_password = document.getElementById("another_password")
+        if (password.value != another_password.value)
+        {
+            alert("Passwords is different")
+            return
+        }
+
+        let resp = await fetch('/api/signUp',{
+            method: "POST",
+            headers:
+            {
+             "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                username: login.value,
+                password: password.value,
+            })
+        })
+        let data = await resp.json()
+        console.log(data)
+        if (resp.status != 200)
+        {
+            alert("error")
+        }
+        else if (resp.status != 400)
+        {
+            alert(data["message"])
+            window.location = 'login'
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,34 +1,41 @@
+import jose.exceptions
 from fastapi import FastAPI
-from fastapi import Body
+from fastapi import Body, Header, Depends
+from fastapi.exceptions import HTTPException
 from fastapi.responses import PlainTextResponse
+from fastapi.responses import HTMLResponse
 import uvicorn
 from enum import Enum, auto
 import sqlite3
+from jose import jwt
+import config
+from Utils import DbAction, run_code, execute_action
+from TaskChecker import Task, get_task
+
 
 app = FastAPI()
 
 
-class DbAction(Enum):
-    fetchone = auto()
-    fetchall = auto()
-    commit = auto()
-    none = auto()
 
 
-def execute_action(query, args, action):
-    conn = sqlite3.connect("db.sqlite")
-    cursor = conn.cursor()
-    cursor.execute(query, args)
-    result = None
-    if action == DbAction.fetchone:
-        result = cursor.fetchone()
-    elif action == DbAction.fetchall:
-        result = cursor.fetchall()
-    elif action == DbAction.commit:
-        conn.commit()
-    cursor.close()
-    conn.close()
-    return result
+def get_user(authorization: str = Header(...)):
+    try:
+        user_id = jwt.decode(authorization, config.Secret, algorithms=['HS256'])['id']
+    except jose.exceptions.JWTError:
+        raise HTTPException(
+            status_code=400,
+            detail="Неверный токен"
+        )
+    user = execute_action('''
+        select * from users where id = ?
+    ''', (user_id,), DbAction.fetchone)
+    return user
+
+
+def send_html(file_name: str):
+    with open(f"Html/{file_name}.html") as f:
+        return HTMLResponse(f.read())
+
 
 
 @app.on_event("startup")
@@ -39,37 +46,72 @@ def create_db():
         password text not null
     );
     ''', (), DbAction.none)
+    execute_action('''create table if not exists tasks (
+        id integer primary key,
+        name text not null,
+        description text,
+        output text not null
+    );
+    ''', (), DbAction.none)
 
 
 @app.get("/")
 def hello():
-    return PlainTextResponse("Hello world")
+    return send_html("index")
+
+
+@app.post("/api/ping")
+def ping(user: list = Depends(get_user)):
+    return {
+        'response': 'Pong',
+        'username': user[1]
+    }
 
 
 @app.get("/login")
 def login():
-    return PlainTextResponse("Login")
+    return send_html("login")
 
 
-@app.post("/login")
+@app.post("/api/login")
 def login(username: str = Body(...), password: str = Body(...)):
     user = execute_action('''
         select * from users where username = ? and password = ?
     ''', (username, password), DbAction.fetchone)
-    return user
+    if user is None:
+        return {'error': "Пользователь не найден"}
+    token = jwt.encode({'id': user[0]}, config.Secret, algorithm="HS256")
+    return {'token': token}
 
 
-@app.post("/signUp")
+@app.get("/signUp")
+def sign_up():
+    return send_html("signUp")
+
+
+@app.post("/api/signUp")
 def sign_up(username: str = Body(...), password: str = Body(...)):
     if execute_action('''
         select * from users where username = ?
     ''', (username,), DbAction.fetchone) is not None:
-        return PlainTextResponse("Этот пользователь уже зарегистрирован")
+        raise HTTPException(
+            status_code=400,
+            detail="Пользователь уже существует"
+        )
 
     execute_action('''
         insert into users (username, password) values (?, ?)
     ''', (username, password), DbAction.commit)
-    return PlainTextResponse("Добро пожаловать")
+    return {"message": "Добро пожаловать"}
+
+
+@app.post("/api/execute")
+def execute(user: list = Depends(get_user), code: str = Body(..., embed=True)):
+    stdout = run_code(code)
+    return {
+        'result': stdout
+    }
+
 
 
 uvicorn.run(app)
