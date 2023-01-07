@@ -23,6 +23,7 @@ def execute_action(query, args, action):
         result = cursor.fetchall()
     elif action == DbAction.commit:
         conn.commit()
+        result = cursor.lastrowid
     cursor.close()
     conn.close()
     return result
@@ -35,6 +36,6 @@ def run_code(code: str):
         f.write(code)
     process = subprocess.Popen(['python', filename], stdout=subprocess.PIPE)
     process.wait()
-    stdout = process.stdout.read()
+    stdout = process.stdout.read().decode()
     os.remove(filename)
-    print(stdout)
+    return stdout

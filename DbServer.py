@@ -2,20 +2,15 @@ import jose.exceptions
 from fastapi import FastAPI
 from fastapi import Body, Header, Depends
 from fastapi.exceptions import HTTPException
-from fastapi.responses import PlainTextResponse
 from fastapi.responses import HTMLResponse
 import uvicorn
-from enum import Enum, auto
-import sqlite3
 from jose import jwt
 import config
 from Utils import DbAction, run_code, execute_action
-from TaskChecker import Task, get_task
+from TaskChecker import Task
 
 
 app = FastAPI()
-
-
 
 
 def get_user(authorization: str = Header(...)):
@@ -35,7 +30,6 @@ def get_user(authorization: str = Header(...)):
 def send_html(file_name: str):
     with open(f"Html/{file_name}.html") as f:
         return HTMLResponse(f.read())
-
 
 
 @app.on_event("startup")
@@ -112,6 +106,16 @@ def execute(user: list = Depends(get_user), code: str = Body(..., embed=True)):
         'result': stdout
     }
 
+
+@app.get("/api/tasks")
+def get_tasks(user: list = Depends(get_user)):
+    return Task.all()
+
+
+@app.post("/api/send_task")
+def send_task(user: list = Depends(get_user), code: str = Body(..., embed=True), task_id: int = Body(..., embed=True)) -> bool:
+    task = Task.get(task_id)
+    return task.check_solution(code)
 
 
 uvicorn.run(app)
