@@ -51,7 +51,8 @@ def create_db():
 
 @app.get("/")
 def hello():
-    return send_html("index")
+    #return send_html("index")
+    return send_html("tasks")
 
 
 @app.post("/api/ping")
@@ -113,9 +114,12 @@ def get_tasks(user: list = Depends(get_user)):
 
 
 @app.post("/api/send_task")
-def send_task(user: list = Depends(get_user), code: str = Body(..., embed=True), task_id: int = Body(..., embed=True)) -> bool:
+def send_task(user: list = Depends(get_user), code: str = Body(..., embed=True), task_id: int = Body(..., embed=True)):
     task = Task.get(task_id)
-    return task.check_solution(code)
+    result = task.check_solution(code)
+    return {
+        'result': result
+    }
 
 
 uvicorn.run(app)
