@@ -11,21 +11,31 @@
   <p id="description">
     description
   </p>
-  <textarea id="code">print("Hello world!")</textarea>
+  <textarea id="code" hidden="hidden">print("Hello world!")</textarea>
   <br>
-    <button id="execute" onclick="run_code()">
+    <button id="execute" onclick="run_code()" hidden="hidden">
       Execute code
     </button>
   <br>
-  <textarea id="result" readonly></textarea>
+  <textarea id="result" readonly hidden="hidden"></textarea>
   <script>
     let tasks
+    let current_task_id = 0
 
     async function load_task(task_num) {
         header = document.getElementById('header')
         header.textContent = tasks[task_num]['name']
         desc = document.getElementById('description')
         desc.textContent = tasks[task_num]['description']
+        current_task_id = tasks[task_num]['id']
+
+        let code_area = document.getElementById("code")
+        let run_code_btn = document.getElementById("execute")
+        let result_area = document.getElementById("result")
+
+        code_area.removeAttribute("hidden")
+        run_code_btn.removeAttribute("hidden")
+        result_area.removeAttribute("hidden")
     }
 
     async function load_tasks() {
@@ -47,6 +57,27 @@
         task_list.appendChild(element)
       }
 
+    }
+
+    async function run_code()
+    {
+        let token = localStorage.getItem('token')
+        let code = document.getElementById("code").value
+        let resp = await fetch('/api/send_task',{
+            method: "POST",
+            headers:
+            {
+                "Authorization": token,
+                "content-type": "application/json"
+            },
+            body: JSON.stringify({
+                    code: code,
+                    task_id: current_task_id
+                })
+        })
+        let data = await resp.json()
+        let result = document.getElementById("result")
+        result.value = JSON.stringify(data['result'])
     }
     load_tasks()
   </script>

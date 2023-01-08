@@ -44,7 +44,7 @@ def create_db():
         id integer primary key,
         name text not null,
         description text,
-        output text not null
+        tests text not null
     );
     ''', (), DbAction.none)
 

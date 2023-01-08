@@ -1,3 +1,5 @@
+import json
+
 import Utils
 from Utils import execute_action, DbAction
 
@@ -6,18 +8,18 @@ class Task:
     id: int
     name: str
     description: str
-    output: str
+    tests: str
 
-    def __init__(self, task_id, name, description, output):
+    def __init__(self, task_id, name, description, tests):
         self.id = task_id
         self.name = name
         self.description = description
-        self.output = output
+        self.tests = tests
 
     def save(self):
         execute_action('''
         update tasks set name = ?, description = ?, output = ? where id = ? 
-        ''', (self.name, self.description, self.output, self.id), DbAction.commit)
+        ''', (self.name, self.description, self.tests, self.id), DbAction.commit)
 
     @staticmethod
     def get(task_id: int) -> 'Task':
@@ -40,16 +42,30 @@ class Task:
         return tasks
 
     @staticmethod
-    def create(name: str, description: str, output: str):
+    def create(name: str, description: str, tests: str):
         task_id = execute_action('''
-        insert into tasks (name, description, output) values (?, ?, ?)
-        ''', (name, description, output), DbAction.commit)
+        insert into tasks (name, description, tests) values (?, ?, ?)
+        ''', (name, description, tests), DbAction.commit)
         task = Task.get(task_id)
         return task
 
 
-    def check_solution(self, code: str) -> bool:
-        output = Utils.run_code(code)
-        if output[-1] == "\n":
-            output = output[:-2]
-        return output == self.output
+    def check_solution(self, code: str) -> dict:
+        tests = json.loads(self.tests)
+        tests_completed = 0
+        for test in tests:
+            program_input = test["input"]
+            expected_output = test["output"]
+
+            output = Utils.run_code(code, program_input)
+            if output[-1] == "\n":
+                output = output[:-2]
+            if output != expected_output:
+                return {
+                    "status": False,
+                    "expected_output": expected_output,
+                    "user_output": output,
+                    "tests_completed": tests_completed
+                }
+            tests_completed += 1
+        return {"status": True}
